@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="it" class="theme-dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>SimpL · Tempo e spese</title>
+<style>
+  :root {
+    --paper:#FAFAF8; --ink:#141513; --muted:#6E6F68; --rule:#E3E2DC;
+    --fill:#1F4D3F; --fill-soft:rgba(31,77,63,.09); --flag:#A8321E;
+    --input:#fff;
+  }
+  html.theme-dark {
+    --paper:#141412; --ink:#EDECE6; --muted:#9A9A92; --rule:#2C2C28;
+    --fill:#7BC9A4; --fill-soft:rgba(123,201,164,.14); --flag:#E07A6A;
+    --input:#1C1C18;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; padding:32px 20px 80px; background:var(--paper); color:var(--ink);
+    font-family:system-ui,-apple-system,sans-serif; font-size:15px; line-height:1.45;
+  }
+  .wrap { max-width:720px; margin:0 auto; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+  .theme-btn {
+    background:transparent; color:var(--ink); border:1px solid var(--rule);
+    padding:8px 12px; font:inherit; font-size:12px; cursor:pointer; white-space:nowrap;
+  }
+  .eyebrow { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  h1 { font-size:28px; line-height:1.15; letter-spacing:-.02em; margin:8px 0 4px; }
+  .lead { color:var(--muted); max-width:46ch; margin:0 0 24px; }
+  .tabs { display:flex; gap:0; border-bottom:1px solid var(--rule); margin-bottom:24px; }
+  .tabs button {
+    background:none; border:0; border-bottom:2px solid transparent; padding:10px 16px;
+    font:inherit; color:var(--muted); cursor:pointer;
+  }
+  .tabs button.on { color:var(--ink); border-bottom-color:var(--ink); font-weight:600; }
+  label.k { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:600; display:block; margin-bottom:6px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  .row > div { flex:1; min-width:180px; }
+  select, input[type=text], input[type=date], input[type=number] {
+    width:100%; padding:10px 12px; border:1px solid var(--rule); background:var(--input);
+    font:inherit; color:var(--ink);
+  }
+  .ini {
+    display:grid; grid-template-columns:1fr 88px 56px; gap:8px; align-items:center;
+    padding:8px 0; border-bottom:1px solid var(--rule);
+  }
+  .ini .name { font-weight:500; }
+  .ini .id { font-size:11px; color:var(--muted); font-family:ui-monospace,monospace; margin-left:8px; }
+  .ini input[type=range] { width:100%; }
+  .sum {
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin:16px 0; padding:12px 0; border-top:2px solid var(--ink); font-weight:600;
+  }
+  .sum.bad { color:var(--flag); }
+  .sum.ok { color:var(--fill); }
+  button.primary {
+    background:var(--ink); color:var(--paper); border:0; padding:12px 20px;
+    font:inherit; font-weight:600; cursor:pointer;
+  }
+  button.primary:disabled { opacity:.35; cursor:not-allowed; }
+  button.ghost { background:none; border:1px solid var(--rule); color:var(--ink); padding:10px 14px; font:inherit; cursor:pointer; }
+  .msg { margin-top:12px; font-size:14px; color:var(--fill); }
+  .warn { color:var(--flag); font-size:13px; margin:8px 0 16px; }
+  .tx {
+    padding:14px 0; border-bottom:1px solid var(--rule);
+  }
+  .tx .amt { font-family:ui-monospace,monospace; font-weight:600; }
+  .tx .meta { font-size:12px; color:var(--muted); margin-top:2px; }
+  .tx .assign { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; align-items:center; }
+  .tx .assign select { flex:1; min-width:160px; }
+  .remember { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--muted); }
+  .hidden { display:none; }
+  .cat { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:20px 0 4px; }
+</style>
+<script>window.SURVEY_SB_URL="https://kamaejoycbkdcqksjpup.supabase.co";window.SURVEY_SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWFlam95Y2JrZGNxa3NqcHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjUzNjk3OTAsImV4cCI6MjA0MDk0NTc5MH0.emb-aFBuDXwtc4L1plA5uWe_tYwdk2mHQiSmhp2D9ns";</script></head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">SimpL · ROI</div>
+      <h1 id="title">Dove è andato il tempo, e le spese che il CSV non ha saputo etichettare.</h1>
+    </div>
+    <button type="button" class="theme-btn" id="theme-btn">Tema chiaro</button>
+  </div>
+  <p class="lead" id="lead">Ogni persona compila la propria settimana. Le percentuali devono sommare 100. Il report fa la media delle settimane del mese. I codici INI-01, COGS-01 stanno in data/initiatives.csv e in fondo al report.</p>
+
+  <div class="tabs" id="tabs">
+    <button type="button" class="on" data-tab="tempo">Tempo</button>
+    <button type="button" data-tab="spese">Spese senza etichetta <span id="n-untagged"></span></button>
+  </div>
+
+  <section id="tab-tempo">
+    <div class="row">
+      <div id="person-box">
+        <label class="k">Chi sei</label>
+        <select id="person"></select>
+      </div>
+      <div>
+        <label class="k">Settimana (lunedì)</label>
+        <input type="date" id="week">
+      </div>
+    </div>
+    <p id="cost-warn" class="warn hidden"></p>
+    <p id="copied" class="lead" style="margin-bottom:12px"></p>
+    <div id="inis"></div>
+    <div class="sum" id="sum"><span>Totale</span><span id="sum-val">0 %</span></div>
+    <button class="primary" id="save" disabled>Salva settimana</button>
+    <button class="ghost" id="copy-last" type="button">Copia settimana precedente</button>
+    <div class="msg" id="tempo-msg"></div>
+  </section>
+
+  <section id="tab-spese" class="hidden">
+    <p class="lead" id="spese-lead">Nessuna uscita senza etichetta.</p>
+    <div id="txs"></div>
+  </section>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const TOKEN = new URLSearchParams(location.search).get("t") || "";
+const SB_URL = (window.SURVEY_SB_URL || "").replace(/\/$/, "");
+const SB_KEY = window.SURVEY_SB_KEY || "";
+const API_BASE = location.pathname.replace(/\/index\.html$/, "").replace(/\/$/, "");
+let state = { people: [], initiatives: [], untagged: [], week_start: "", costs: {}, locked: false, person: "" };
+
+function api(path, opts = {}) {
+  if (SB_URL && SB_KEY && TOKEN) return sbApi(path, opts);
+  const u = new URL((API_BASE || "") + path, location.origin);
+  if (TOKEN) u.searchParams.set("t", TOKEN);
+  const headers = Object.assign({"Content-Type": "application/json"}, opts.headers || {});
+  if (TOKEN) headers["X-Survey-Token"] = TOKEN;
+  return fetch(u, Object.assign({}, opts, { headers }));
+}
+
+async function sbApi(path, opts = {}) {
+  const u = new URL(path, "https://survey.local");
+  const method = (opts.method || "GET").toUpperCase();
+  let name, args;
+  if (u.pathname.endsWith("/api/bootstrap")) {
+    name = "survey_bootstrap";
+    args = { p_token: TOKEN };
+  } else if (u.pathname.endsWith("/api/week") && method === "GET") {
+    name = "survey_week";
+    args = {
+      p_token: TOKEN,
+      p_week: u.searchParams.get("week_start") || null,
+      p_copy: u.searchParams.get("copy") === "1",
+    };
+  } else if (u.pathname.endsWith("/api/week") && method === "POST") {
+    const body = JSON.parse(opts.body || "{}");
+    name = "survey_save";
+    args = {
+      p_token: TOKEN,
+      p_week: body.week_start || null,
+      p_allocations: body.allocations || [],
+    };
+  } else {
+    return new Response(JSON.stringify({ ok: false, error: "non disponibile online" }), {
+      status: 404, headers: { "Content-Type": "application/json" },
+    });
+  }
+  const res = await fetch(`${SB_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "Accept-Profile": "roi",
+      "Content-Profile": "roi",
+    },
+    body: JSON.stringify(args),
+  });
+  if (res.ok) return res;
+  const err = await res.json().catch(() => ({}));
+  const msg = err.message || err.error || ("errore " + res.status);
+  const status = /link non valido/i.test(msg) ? 401 : res.status;
+  return new Response(JSON.stringify({ ok: false, error: msg }), {
+    status, headers: { "Content-Type": "application/json" },
+  });
+}
+
+async function boot() {
+  const res = await api("/api/bootstrap");
+  if (res.status === 401) {
+    document.body.innerHTML = "<p style='max-width:36ch;margin:48px auto;padding:0 20px'>Ti serve il link personale che ti è stato mandato.</p>";
+    return;
+  }
+  state = await res.json();
+  $("week").value = state.week_start;
+  if (state.mode === "tempo" || state.locked) {
+    $("title").textContent = "La tua settimana.";
+    $("lead").textContent = "Sposta gli slider fino a 100 e salva. Cinque minuti, una volta a settimana. Le settimane che non compili non vengono inventate.";
+    $("tabs").classList.add("hidden");
+    $("tab-spese").classList.add("hidden");
+    $("person-box").innerHTML = `<label class="k">Chi sei</label><div style="padding:10px 0;font-weight:600">${state.person}</div><select id="person" class="hidden"><option selected>${state.person}</option></select>`;
+  } else {
+    const sel = $("person");
+    sel.innerHTML = state.people.map(p => `<option>${p}</option>`).join("") + `<option value="__new">+ un’altra persona</option>`;
+    $("n-untagged").textContent = state.untagged.length ? `(${state.untagged.length})` : "";
+    renderTxs();
+  }
+  renderInis();
+  await loadWeek();
+  onPerson();
+}
+
+function groupedInis() {
+  const order = ["prodotto","commerciale","infrastruttura","license_to_operate"];
+  const cats = {};
+  for (const i of state.initiatives) {
+    if (i.is_cogs) continue;
+    (cats[i.category] ||= []).push(i);
+  }
+  return order.filter(c => cats[c]).map(c => [c, cats[c]]);
+}
+
+const CAT = {prodotto:"Prodotto", commerciale:"Commerciale", infrastruttura:"Infrastruttura", license_to_operate:"License to operate"};
+
+function renderInis(values = {}) {
+  const box = $("inis");
+  box.innerHTML = groupedInis().map(([cat, items]) =>
+    `<div class="cat">${CAT[cat] || cat}</div>` +
+    items.map(i => `
+      <div class="ini" data-id="${i.id}">
+        <div><span class="name">${i.name}</span><span class="id">${i.id}</span></div>
+        <input type="range" min="0" max="100" step="5" value="${values[i.id] || 0}">
+        <input type="number" min="0" max="100" step="5" value="${values[i.id] || 0}">
+      </div>`).join("")
+  ).join("");
+  box.querySelectorAll(".ini").forEach(el => {
+    const range = el.querySelector("input[type=range]");
+    const num = el.querySelector("input[type=number]");
+    const sync = (from) => {
+      const v = Math.max(0, Math.min(100, Number(from.value) || 0));
+      range.value = v; num.value = v; updateSum();
+    };
+    range.addEventListener("input", () => sync(range));
+    num.addEventListener("input", () => sync(num));
+  });
+  updateSum();
+}
+
+function values() {
+  const out = {};
+  document.querySelectorAll(".ini").forEach(el => {
+    out[el.dataset.id] = Number(el.querySelector("input[type=number]").value) || 0;
+  });
+  return out;
+}
+
+function updateSum() {
+  const tot = Object.values(values()).reduce((a,b) => a+b, 0);
+  $("sum-val").textContent = tot.toFixed(0) + " %";
+  $("sum").className = "sum " + (Math.abs(tot-100) < 0.5 ? "ok" : "bad");
+  $("save").disabled = Math.abs(tot-100) >= 0.5 || !$("person").value || $("person").value === "__new";
+}
+
+function onPerson() {
+  const p = $("person").value;
+  if (p === "__new") {
+    const name = prompt("Nome (come in people_costs, es. Luca)");
+    if (!name) { $("person").selectedIndex = 0; return; }
+    api("/api/person", {method:"POST", body: JSON.stringify({person:name})})
+      .then(() => boot().then(() => { $("person").value = name; loadWeek(); }));
+    return;
+  }
+  const missing = state.costs_missing || [];
+  const w = $("cost-warn");
+  if (missing.includes(p)) {
+    w.textContent = p + " non ha un monthly_cost in people_costs.csv: il tempo si salva, ma il report non lo converte in euro finché non lo aggiungi.";
+    w.classList.remove("hidden");
+  } else w.classList.add("hidden");
+}
+
+async function loadWeek() {
+  const person = $("person").value;
+  const week = $("week").value;
+  if (!person || person === "__new" || !week) return;
+  const q = new URLSearchParams({person, week_start: week});
+  const data = await (await api("/api/week?" + q)).json();
+  if (data.week_start) $("week").value = data.week_start;
+  renderInis(data.allocations || {});
+  $("copied").textContent = data.copied_from
+    ? "Nessuna compilazione per questa settimana: ho riproposto quella del " + data.copied_from + ". Modifica e salva."
+    : (Object.keys(data.allocations||{}).length ? "Già compilata: puoi correggere." : "");
+}
+
+async function saveWeek() {
+  const person = $("person").value;
+  const week_start = $("week").value;
+  const allocations = Object.entries(values()).map(([initiative_id, pct]) => ({initiative_id, pct}));
+  const res = await api("/api/week", {
+    method:"POST",
+    body: JSON.stringify({person, week_start, allocations})
+  });
+  const data = await res.json();
+  $("tempo-msg").textContent = data.ok ? "Salvata. La media delle settimane del mese entra nel report." : (data.error || "Errore");
+}
+
+function renderTxs() {
+  const list = state.untagged || [];
+  $("spese-lead").textContent = list.length
+    ? list.length + " uscite senza iniziativa. Assegnale qui: se il vendor è stabile, spunta «ricorda» e la volta dopo lo fa da solo."
+    : "Tutte le uscite importate hanno un’iniziativa.";
+  const opts = `<option value="">— iniziativa —</option>` + state.initiatives.map(i => `<option value="${i.id}">${i.name}</option>`).join("");
+  $("txs").innerHTML = list.map(t => `
+    <div class="tx" data-id="${t.id}">
+      <div><span class="amt">${Number(t.amount).toLocaleString("it-IT")} €</span> · ${t.counterpart || t.description}</div>
+      <div class="meta">${t.booked_on} · ${t.description || ""}</div>
+      <div class="assign">
+        <select>${opts}</select>
+        <label class="remember"><input type="checkbox" checked> ricorda questo vendor</label>
+        <button class="ghost" type="button">Assegna</button>
+      </div>
+    </div>`).join("");
+  $("txs").querySelectorAll(".tx").forEach(el => {
+    el.querySelector("button").addEventListener("click", async () => {
+      const initiative_id = el.querySelector("select").value;
+      if (!initiative_id) return;
+      const remember = el.querySelector("input[type=checkbox]").checked;
+      await api("/api/tag", {
+        method:"POST",
+        body: JSON.stringify({id: el.dataset.id, initiative_id, remember})
+      });
+      el.remove();
+      const n = $("txs").querySelectorAll(".tx").length;
+      $("n-untagged").textContent = n ? `(${n})` : "";
+    });
+  });
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  $("tab-tempo").classList.toggle("hidden", b.dataset.tab !== "tempo");
+  $("tab-spese").classList.toggle("hidden", b.dataset.tab !== "spese");
+}));
+$("person").addEventListener("change", () => { onPerson(); loadWeek(); });
+$("week").addEventListener("change", loadWeek);
+$("save").addEventListener("click", saveWeek);
+$("copy-last").addEventListener("click", async () => {
+  const q = new URLSearchParams({person:$("person").value, week_start:$("week").value, copy: "1"});
+  const data = await (await api("/api/week?" + q)).json();
+  renderInis(data.allocations || {});
+});
+(function theme() {
+  const KEY = "simpl-roi-theme";
+  const html = document.documentElement;
+  const btn = document.getElementById("theme-btn");
+  function apply(dark) {
+    html.classList.toggle("theme-dark", dark);
+    btn.textContent = dark ? "Tema chiaro" : "Tema scuro";
+  }
+  apply(localStorage.getItem(KEY) !== "light");
+  btn.addEventListener("click", () => {
+    const dark = !html.classList.contains("theme-dark");
+    apply(dark);
+    localStorage.setItem(KEY, dark ? "dark" : "light");
+  });
+})();
+boot();
+</script>
+</body>
+</html>
