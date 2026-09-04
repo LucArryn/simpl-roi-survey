@@ -47,9 +47,12 @@
     display:grid; grid-template-columns:1fr 88px 56px; gap:8px; align-items:center;
     padding:8px 0; border-bottom:1px solid var(--rule);
   }
+  .ini.child { padding-left:18px; }
   .ini .name { font-weight:500; }
+  .ini.child .name { font-weight:400; }
   .ini .id { font-size:11px; color:var(--muted); font-family:ui-monospace,monospace; margin-left:8px; }
   .ini input[type=range] { width:100%; }
+  .draft-tag { font-size:11px; color:var(--muted); margin-left:6px; }
   .sum {
     display:flex; justify-content:space-between; align-items:baseline;
     margin:16px 0; padding:12px 0; border-top:2px solid var(--ink); font-weight:600;
@@ -74,8 +77,12 @@
   .remember { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--muted); }
   .hidden { display:none; }
   .cat { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:20px 0 4px; }
+  .new-ini {
+    margin:20px 0 8px; padding:16px; border:1px dashed var(--rule);
+  }
+  .new-ini .row { margin-bottom:12px; }
 </style>
-<script>window.SURVEY_SB_URL="https://kamaejoycbkdcqksjpup.supabase.co";window.SURVEY_SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWFlam95Y2JrZGNxa3NqcHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjUzNjk3OTAsImV4cCI6MjA0MDk0NTc5MH0.emb-aFBuDXwtc4L1plA5uWe_tYwdk2mHQiSmhp2D9ns";</script></head>
+<script>window.SURVEY_SB_URL="https://kamaejoycbkdcqksjpup.supabase.co";window.SURVEY_SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWFlam95Y2JrZGNxa3NqcHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjUzNjk3OTAsImV4cCI6MjA0MDk0NTc5MH0.emb-aFBuDXwtc4L1plA5uWe_tYwdk2mHQiSmhp2D9ns";window.SURVEY_SB_TOKEN="cdb5d182433c54743c4154a92e8b8538b1dd";</script></head>
 <body>
 <div class="wrap">
   <div class="top">
@@ -106,6 +113,34 @@
     <p id="cost-warn" class="warn hidden"></p>
     <p id="copied" class="lead" style="margin-bottom:12px"></p>
     <div id="inis"></div>
+    <div class="new-ini" id="new-ini">
+      <label class="k">Nuova iniziativa</label>
+      <p class="lead" style="margin:0 0 12px">Compare agli altri solo quando salvi la settimana.</p>
+      <div class="row">
+        <div>
+          <label class="k">Nome</label>
+          <input type="text" id="new-name" placeholder="es. Onboarding cliente X">
+        </div>
+        <div>
+          <label class="k">Categoria</label>
+          <select id="new-cat">
+            <option value="product">Product</option>
+            <option value="engineering">Engineering</option>
+            <option value="go_to_market">Go-to-Market</option>
+            <option value="license_to_operate">License to operate</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="k">Sotto (opzionale)</label>
+          <select id="new-parent"><option value="">— iniziativa a sé —</option></select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="ghost" type="button" id="add-ini">Aggiungi in bozza</button>
+        </div>
+      </div>
+    </div>
     <div class="sum" id="sum"><span>Totale</span><span id="sum-val">0 %</span></div>
     <button class="primary" id="save" disabled>Salva settimana</button>
     <button class="ghost" id="copy-last" type="button">Copia settimana precedente</button>
@@ -119,11 +154,25 @@
 </div>
 <script>
 const $ = (id) => document.getElementById(id);
-const TOKEN = new URLSearchParams(location.search).get("t") || "";
+const PERSON_KEY = "simpl-roi-person";
+const TOKEN = new URLSearchParams(location.search).get("t") || window.SURVEY_SB_TOKEN || "";
 const SB_URL = (window.SURVEY_SB_URL || "").replace(/\/$/, "");
 const SB_KEY = window.SURVEY_SB_KEY || "";
 const API_BASE = location.pathname.replace(/\/index\.html$/, "").replace(/\/$/, "");
+const CAT = {
+  product: "Product",
+  engineering: "Engineering",
+  go_to_market: "Go-to-Market",
+  license_to_operate: "License to operate",
+  prodotto: "Product",
+  commerciale: "Go-to-Market",
+  infrastruttura: "Engineering",
+};
+const CAT_ORDER = ["product", "engineering", "go_to_market", "license_to_operate", "prodotto", "commerciale", "infrastruttura"];
 let state = { people: [], initiatives: [], untagged: [], week_start: "", costs: {}, locked: false, person: "" };
+let drafts = [];
+let draftN = 0;
+let booting = false;
 
 function api(path, opts = {}) {
   if (SB_URL && SB_KEY && TOKEN) return sbApi(path, opts);
@@ -147,6 +196,7 @@ async function sbApi(path, opts = {}) {
       p_token: TOKEN,
       p_week: u.searchParams.get("week_start") || null,
       p_copy: u.searchParams.get("copy") === "1",
+      p_person: u.searchParams.get("person") || null,
     };
   } else if (u.pathname.endsWith("/api/week") && method === "POST") {
     const body = JSON.parse(opts.body || "{}");
@@ -155,6 +205,8 @@ async function sbApi(path, opts = {}) {
       p_token: TOKEN,
       p_week: body.week_start || null,
       p_allocations: body.allocations || [],
+      p_person: body.person || null,
+      p_new_initiatives: body.new_initiatives || [],
     };
   } else {
     return new Response(JSON.stringify({ ok: false, error: "non disponibile online" }), {
@@ -182,53 +234,127 @@ async function sbApi(path, opts = {}) {
   });
 }
 
-async function boot() {
-  const res = await api("/api/bootstrap");
-  if (res.status === 401) {
-    document.body.innerHTML = "<p style='max-width:36ch;margin:48px auto;padding:0 20px'>Ti serve il link personale che ti è stato mandato.</p>";
-    return;
-  }
-  state = await res.json();
-  $("week").value = state.week_start;
-  if (state.mode === "tempo" || state.locked) {
-    $("title").textContent = "La tua settimana.";
-    $("lead").textContent = "Sposta gli slider fino a 100 e salva. Cinque minuti, una volta a settimana. Le settimane che non compili non vengono inventate.";
-    $("tabs").classList.add("hidden");
-    $("tab-spese").classList.add("hidden");
-    $("person-box").innerHTML = `<label class="k">Chi sei</label><div style="padding:10px 0;font-weight:600">${state.person}</div><select id="person" class="hidden"><option selected>${state.person}</option></select>`;
-  } else {
-    const sel = $("person");
-    sel.innerHTML = state.people.map(p => `<option>${p}</option>`).join("") + `<option value="__new">+ un’altra persona</option>`;
-    $("n-untagged").textContent = state.untagged.length ? `(${state.untagged.length})` : "";
-    renderTxs();
-  }
-  renderInis();
-  await loadWeek();
-  onPerson();
+function fillPeople(keep) {
+  const sel = $("person");
+  if (!sel) return;
+  const people = (state.people || []).filter(p => p && !String(p).startsWith("_"));
+  const remembered = keep || localStorage.getItem(PERSON_KEY) || "";
+  const current = remembered && people.includes(remembered) ? remembered : (people[0] || "");
+  sel.innerHTML = people.map(p => `<option${p === current ? " selected" : ""}>${p}</option>`).join("");
 }
 
-function groupedInis() {
-  const order = ["prodotto","commerciale","infrastruttura","license_to_operate"];
-  const cats = {};
+async function boot() {
+  if (booting) return;
+  booting = true;
+  try {
+    const res = await api("/api/bootstrap");
+    if (res.status === 401) {
+      document.body.innerHTML = "<p style='max-width:36ch;margin:48px auto;padding:0 20px'>Ti serve il link del questionario.</p>";
+      return;
+    }
+    const data = await res.json();
+    const keepPerson = $("person") ? $("person").value : "";
+    const keepWeek = $("week") ? $("week").value : "";
+    const keepVals = $("inis") ? values() : {};
+    state = data;
+    $("week").value = keepWeek || state.week_start;
+    $("title").textContent = "La tua settimana.";
+    $("lead").textContent = "Scegli chi sei, sposta gli slider fino a 100 e salva. Cinque minuti, una volta a settimana. Le settimane che non compili non vengono inventate.";
+    if (state.mode === "tempo") {
+      $("tabs").classList.add("hidden");
+      $("tab-spese").classList.add("hidden");
+    } else {
+      $("n-untagged").textContent = (state.untagged || []).length ? `(${state.untagged.length})` : "";
+      renderTxs();
+    }
+    fillPeople(keepPerson);
+    mergeDrafts();
+    renderInis(Object.keys(keepVals).length ? keepVals : undefined);
+    await loadWeek(Boolean(Object.keys(keepVals).length));
+    onPerson();
+  } finally {
+    booting = false;
+  }
+}
+
+async function refreshCatalog() {
+  const res = await api("/api/bootstrap");
+  if (!res.ok) return;
+  const data = await res.json();
+  const v = values();
+  state.people = data.people || state.people;
+  state.initiatives = data.initiatives || [];
+  mergeDrafts();
+  fillPeople($("person").value);
+  renderInis(v);
+}
+
+function mergeDrafts() {
+  const have = new Set((state.initiatives || []).map(i => i.id));
+  for (const d of drafts) {
+    if (!have.has(d.id)) state.initiatives = state.initiatives.concat([d]);
+  }
+}
+
+function listedInis() {
+  const order = CAT_ORDER;
+  const byId = {};
   for (const i of state.initiatives) {
     if (i.is_cogs) continue;
-    (cats[i.category] ||= []).push(i);
+    byId[i.id] = i;
   }
-  return order.filter(c => cats[c]).map(c => [c, cats[c]]);
+  const cats = {};
+  for (const i of Object.values(byId)) {
+    if (i.parent_id && byId[i.parent_id]) continue;
+    const cat = i.category || "product";
+    (cats[cat] ||= []).push(i);
+    for (const k of Object.values(byId)) {
+      if (k.parent_id === i.id) cats[cat].push(k);
+    }
+  }
+  const seen = new Set();
+  const out = [];
+  for (const c of order) {
+    if (!cats[c] || seen.has(c)) continue;
+    seen.add(c);
+    out.push([c, cats[c]]);
+  }
+  for (const c of Object.keys(cats)) {
+    if (seen.has(c)) continue;
+    out.push([c, cats[c]]);
+  }
+  return out;
 }
 
-const CAT = {prodotto:"Prodotto", commerciale:"Commerciale", infrastruttura:"Infrastruttura", license_to_operate:"License to operate"};
+function fillParentSelect() {
+  const sel = $("new-parent");
+  const current = sel.value;
+  const parents = state.initiatives.filter(i => !i.is_cogs && !i.parent_id);
+  sel.innerHTML = `<option value="">— iniziativa a sé —</option>` +
+    parents.map(i => `<option value="${i.id}">${esc(i.name)} (${i.id})</option>`).join("");
+  if ([...sel.options].some(o => o.value === current)) sel.value = current;
+}
 
-function renderInis(values = {}) {
+function esc(s) {
+  return String(s || "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function renderInis(keep = null) {
+  const prev = keep || values();
   const box = $("inis");
-  box.innerHTML = groupedInis().map(([cat, items]) =>
+  box.innerHTML = listedInis().map(([cat, items]) =>
     `<div class="cat">${CAT[cat] || cat}</div>` +
-    items.map(i => `
-      <div class="ini" data-id="${i.id}">
-        <div><span class="name">${i.name}</span><span class="id">${i.id}</span></div>
-        <input type="range" min="0" max="100" step="5" value="${values[i.id] || 0}">
-        <input type="number" min="0" max="100" step="5" value="${values[i.id] || 0}">
-      </div>`).join("")
+    items.map(i => {
+      const draft = String(i.id).startsWith("tmp-");
+      return `
+      <div class="ini${i.parent_id ? " child" : ""}" data-id="${esc(i.id)}">
+        <div><span class="name">${esc(i.name)}</span><span class="id">${esc(i.id)}</span>${draft ? '<span class="draft-tag">bozza</span>' : ""}</div>
+        <input type="range" min="0" max="100" step="5" value="${prev[i.id] || 0}">
+        <input type="number" min="0" max="100" step="5" value="${prev[i.id] || 0}">
+      </div>`;
+    }).join("")
   ).join("");
   box.querySelectorAll(".ini").forEach(el => {
     const range = el.querySelector("input[type=range]");
@@ -240,6 +366,7 @@ function renderInis(values = {}) {
     range.addEventListener("input", () => sync(range));
     num.addEventListener("input", () => sync(num));
   });
+  fillParentSelect();
   updateSum();
 }
 
@@ -255,7 +382,8 @@ function updateSum() {
   const tot = Object.values(values()).reduce((a,b) => a+b, 0);
   $("sum-val").textContent = tot.toFixed(0) + " %";
   $("sum").className = "sum " + (Math.abs(tot-100) < 0.5 ? "ok" : "bad");
-  $("save").disabled = Math.abs(tot-100) >= 0.5 || !$("person").value || $("person").value === "__new";
+  const person = $("person") && $("person").value;
+  $("save").disabled = Math.abs(tot-100) >= 0.5 || !person || person === "__new";
 }
 
 function onPerson() {
@@ -267,6 +395,7 @@ function onPerson() {
       .then(() => boot().then(() => { $("person").value = name; loadWeek(); }));
     return;
   }
+  if (p) localStorage.setItem(PERSON_KEY, p);
   const missing = state.costs_missing || [];
   const w = $("cost-warn");
   if (missing.includes(p)) {
@@ -275,14 +404,46 @@ function onPerson() {
   } else w.classList.add("hidden");
 }
 
-async function loadWeek() {
+function addDraft() {
+  const name = ($("new-name").value || "").trim();
+  const category = $("new-cat").value;
+  const parent_id = $("new-parent").value || "";
+  if (!name) {
+    $("tempo-msg").textContent = "Dai un nome alla nuova iniziativa.";
+    return;
+  }
+  draftN += 1;
+  const id = "tmp-" + draftN;
+  let parent = parent_id;
+  if (parent) {
+    const mother = state.initiatives.find(i => i.id === parent);
+    if (mother && mother.parent_id) {
+      $("tempo-msg").textContent = "Si può scendere di un solo livello.";
+      return;
+    }
+  }
+  const row = { id, name, category, parent_id: parent || null, roi_ranked: true, is_cogs: false, temp_id: id };
+  drafts.push(row);
+  state.initiatives = state.initiatives.concat([row]);
+  $("new-name").value = "";
+  $("tempo-msg").textContent = "Bozza aggiunta. Gli altri la vedranno dopo Salva.";
+  renderInis();
+}
+
+async function loadWeek(preserve) {
   const person = $("person").value;
   const week = $("week").value;
   if (!person || person === "__new" || !week) return;
+  const kept = preserve ? values() : null;
   const q = new URLSearchParams({person, week_start: week});
   const data = await (await api("/api/week?" + q)).json();
+  if (data.error) {
+    $("tempo-msg").textContent = data.error;
+    return;
+  }
   if (data.week_start) $("week").value = data.week_start;
-  renderInis(data.allocations || {});
+  const alloc = Object.assign({}, data.allocations || {}, kept || {});
+  renderInis(alloc);
   $("copied").textContent = data.copied_from
     ? "Nessuna compilazione per questa settimana: ho riproposto quella del " + data.copied_from + ". Modifica e salva."
     : (Object.keys(data.allocations||{}).length ? "Già compilata: puoi correggere." : "");
@@ -292,12 +453,29 @@ async function saveWeek() {
   const person = $("person").value;
   const week_start = $("week").value;
   const allocations = Object.entries(values()).map(([initiative_id, pct]) => ({initiative_id, pct}));
-  const res = await api("/api/week", {
-    method:"POST",
-    body: JSON.stringify({person, week_start, allocations})
-  });
-  const data = await res.json();
-  $("tempo-msg").textContent = data.ok ? "Salvata. La media delle settimane del mese entra nel report." : (data.error || "Errore");
+  const new_initiatives = drafts.map(d => ({
+    temp_id: d.temp_id || d.id,
+    name: d.name,
+    category: d.category,
+    parent_id: d.parent_id || null,
+  }));
+  try {
+    const res = await api("/api/week", {
+      method:"POST",
+      body: JSON.stringify({person, week_start, allocations, new_initiatives})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      drafts = [];
+      await refreshCatalog();
+      await loadWeek();
+      $("tempo-msg").textContent = "Salvata. La media delle settimane del mese entra nel report.";
+    } else {
+      $("tempo-msg").textContent = data.error || "Errore";
+    }
+  } catch (err) {
+    $("tempo-msg").textContent = "Non sono riuscito a salvare. Riprova.";
+  }
 }
 
 function renderTxs() {
@@ -305,7 +483,7 @@ function renderTxs() {
   $("spese-lead").textContent = list.length
     ? list.length + " uscite senza iniziativa. Assegnale qui: se il vendor è stabile, spunta «ricorda» e la volta dopo lo fa da solo."
     : "Tutte le uscite importate hanno un’iniziativa.";
-  const opts = `<option value="">— iniziativa —</option>` + state.initiatives.map(i => `<option value="${i.id}">${i.name}</option>`).join("");
+  const opts = `<option value="">— iniziativa —</option>` + state.initiatives.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
   $("txs").innerHTML = list.map(t => `
     <div class="tx" data-id="${t.id}">
       <div><span class="amt">${Number(t.amount).toLocaleString("it-IT")} €</span> · ${t.counterpart || t.description}</div>
@@ -339,12 +517,16 @@ document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click
   $("tab-spese").classList.toggle("hidden", b.dataset.tab !== "spese");
 }));
 $("person").addEventListener("change", () => { onPerson(); loadWeek(); });
-$("week").addEventListener("change", loadWeek);
+$("week").addEventListener("change", () => loadWeek());
 $("save").addEventListener("click", saveWeek);
+$("add-ini").addEventListener("click", addDraft);
 $("copy-last").addEventListener("click", async () => {
   const q = new URLSearchParams({person:$("person").value, week_start:$("week").value, copy: "1"});
   const data = await (await api("/api/week?" + q)).json();
-  renderInis(data.allocations || {});
+  renderInis(Object.assign(values(), data.allocations || {}));
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshCatalog();
 });
 (function theme() {
   const KEY = "simpl-roi-theme";
