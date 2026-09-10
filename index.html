@@ -26,7 +26,9 @@
   .theme-btn {
     background:transparent; color:var(--ink); border:1px solid var(--rule);
     padding:8px 12px; font:inherit; font-size:12px; cursor:pointer; white-space:nowrap;
+    text-decoration:none; display:inline-block;
   }
+  .top-actions { display:flex; gap:8px; align-items:center; }
   .eyebrow { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:600; }
   h1 { font-size:28px; line-height:1.15; letter-spacing:-.02em; margin:8px 0 4px; }
   .lead { color:var(--muted); max-width:46ch; margin:0 0 24px; }
@@ -36,10 +38,15 @@
     font:inherit; color:var(--muted); cursor:pointer;
   }
   .tabs button.on { color:var(--ink); border-bottom-color:var(--ink); font-weight:600; }
+  .tabs a {
+    background:none; border:0; border-bottom:2px solid transparent; padding:10px 16px;
+    font:inherit; color:var(--muted); cursor:pointer; text-decoration:none; display:inline-block;
+  }
+  .tabs a:hover { color:var(--ink); }
   label.k { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:600; display:block; margin-bottom:6px; }
   .row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
   .row > div { flex:1; min-width:180px; }
-  select, input[type=text], input[type=date], input[type=number] {
+  select, input[type=text], input[type=date], input[type=number], input[type=file], input[type=month] {
     width:100%; padding:10px 12px; border:1px solid var(--rule); background:var(--input);
     font:inherit; color:var(--ink);
   }
@@ -82,7 +89,7 @@
   }
   .new-ini .row { margin-bottom:12px; }
 </style>
-<script>window.SURVEY_SB_URL="https://kamaejoycbkdcqksjpup.supabase.co";window.SURVEY_SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWFlam95Y2JrZGNxa3NqcHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjUzNjk3OTAsImV4cCI6MjA0MDk0NTc5MH0.emb-aFBuDXwtc4L1plA5uWe_tYwdk2mHQiSmhp2D9ns";window.SURVEY_SB_TOKEN="cdb5d182433c54743c4154a92e8b8538b1dd";</script></head>
+<script>window.SURVEY_SB_URL="https://kamaejoycbkdcqksjpup.supabase.co";window.SURVEY_SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImthbWFlam95Y2JrZGNxa3NqcHVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjUzNjk3OTAsImV4cCI6MjA0MDk0NTc5MH0.emb-aFBuDXwtc4L1plA5uWe_tYwdk2mHQiSmhp2D9ns";window.SURVEY_SB_TOKEN="cdb5d182433c54743c4154a92e8b8538b1dd";window.SURVEY_APP=true;</script></head>
 <body>
 <div class="wrap">
   <div class="top">
@@ -90,13 +97,19 @@
       <div class="eyebrow">SimpL · ROI</div>
       <h1 id="title">Dove è andato il tempo, e le spese che il CSV non ha saputo etichettare.</h1>
     </div>
-    <button type="button" class="theme-btn" id="theme-btn">Tema chiaro</button>
+    <div class="top-actions">
+      <a href="/logout" id="logout" class="theme-btn" hidden>Esci</a>
+      <button type="button" class="theme-btn" id="theme-btn">Tema chiaro</button>
+    </div>
   </div>
   <p class="lead" id="lead">Ogni persona compila la propria settimana. Le percentuali devono sommare 100. Il report fa la media delle settimane del mese. I codici INI-01, COGS-01 stanno in data/initiatives.csv e in fondo al report.</p>
 
   <div class="tabs" id="tabs">
     <button type="button" class="on" data-tab="tempo">Tempo</button>
     <button type="button" data-tab="spese">Spese senza etichetta <span id="n-untagged"></span></button>
+    <button type="button" data-tab="persone">Persone</button>
+    <button type="button" data-tab="analisi" id="analisi-tab" class="hidden">Analisi</button>
+    <a href="/report" id="analisi-link">Analisi</a>
   </div>
 
   <section id="tab-tempo">
@@ -149,11 +162,80 @@
   </section>
 
   <section id="tab-spese" class="hidden">
+    <div class="new-ini" id="bank-box">
+      <label class="k">Carica un CSV banca</label>
+      <p class="lead" style="margin:0 0 12px">Revolut, Qonto, o l’altra banca (F24, contributi). Chiunque in SimpL può caricare l’export: i movimenti nuovi si accodano, i duplicati no. Stipendi, welfare e F24 vanno da soli su PAYROLL; i vendor già visti sull’iniziativa giusta. Pranzi e Amazon restano qui sotto, finché non c’è un vendor stabile.</p>
+      <div class="row">
+        <div>
+          <input type="file" id="bank-file" accept=".csv,text/csv,text/plain">
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="ghost" type="button" id="bank-upload">Importa</button>
+        </div>
+      </div>
+      <div class="msg" id="bank-msg"></div>
+    </div>
     <p class="lead" id="spese-lead">Nessuna uscita senza etichetta.</p>
     <div id="txs"></div>
   </section>
+
+  <section id="tab-persone" class="hidden">
+    <p class="lead">Chi ha un RAL entra in euro. Chi non è ancora assunto resta in elenco (può compilare il questionario) e prende un costo il giorno in cui salvi il pacchetto.</p>
+    <div id="roster"></div>
+    <div class="new-ini" id="person-form">
+      <label class="k">Nuova persona, o aggiorna un pacchetto</label>
+      <div class="row">
+        <div>
+          <label class="k">Nome</label>
+          <input type="text" id="p-name" placeholder="es. Luca">
+        </div>
+        <div>
+          <label class="k">Dal mese</label>
+          <input type="month" id="p-from">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="k">RAL (€ / anno)</label>
+          <input type="text" id="p-ral" placeholder="vuoto = non ancora assunto">
+        </div>
+        <div>
+          <label class="k">Welfare (€ / anno)</label>
+          <input type="text" id="p-welfare" placeholder="5000">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="k">Fringe (€ / anno)</label>
+          <input type="text" id="p-fringe" placeholder="1000">
+        </div>
+        <div>
+          <label class="k">Buono pasto (€, giorni di presenza)</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="p-buono" placeholder="10" style="width:40%">
+            <input type="text" id="p-giorni" placeholder="215" style="width:60%">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="remember"><input type="checkbox" id="p-contractor"> P.IVA (il RAL è il fatturato)</label>
+        </div>
+        <div>
+          <label class="remember"><input type="checkbox" id="p-figli"> Figli a carico</label>
+        </div>
+      </div>
+      <button class="primary" type="button" id="p-save">Salva persona</button>
+      <div class="msg" id="p-msg"></div>
+    </div>
+  </section>
+
+  <section id="tab-analisi" class="hidden">
+    <div id="analisi-body"><p class="lead">Carico i numeri dai dati vivi…</p></div>
+  </section>
 </div>
 <script>
+const APP = Boolean(window.SURVEY_APP);
 const $ = (id) => document.getElementById(id);
 const PERSON_KEY = "simpl-roi-person";
 const TOKEN = new URLSearchParams(location.search).get("t") || window.SURVEY_SB_TOKEN || "";
@@ -185,11 +267,30 @@ function api(path, opts = {}) {
   return fetch(u, Object.assign({}, opts, { headers }));
 }
 
+async function sbRpc(name, args) {
+  return fetch(`${SB_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SB_KEY,
+      Authorization: "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "Accept-Profile": "roi",
+      "Content-Profile": "roi",
+    },
+    body: JSON.stringify(args),
+  });
+}
+
 async function sbApi(path, opts = {}) {
   const u = new URL(path, "https://survey.local");
   const method = (opts.method || "GET").toUpperCase();
   let name, args;
   if (u.pathname.endsWith("/api/bootstrap")) {
+    if (APP) {
+      const full = await sbRpc("app_bootstrap", { p_token: TOKEN });
+      if (full.ok) return full;
+    }
     name = "survey_bootstrap";
     args = { p_token: TOKEN };
   } else if (u.pathname.endsWith("/api/week") && method === "GET") {
@@ -210,23 +311,29 @@ async function sbApi(path, opts = {}) {
       p_person: body.person || null,
       p_new_initiatives: body.new_initiatives || [],
     };
+  } else if (u.pathname.endsWith("/api/bank") && method === "POST") {
+    const body = JSON.parse(opts.body || "{}");
+    name = "survey_ingest";
+    args = { p_token: TOKEN, p_rows: body.rows || [] };
+  } else if (u.pathname.endsWith("/api/tag") && method === "POST") {
+    const body = JSON.parse(opts.body || "{}");
+    name = "survey_tag";
+    args = {
+      p_token: TOKEN,
+      p_id: body.id,
+      p_initiative_id: body.initiative_id,
+      p_remember: Boolean(body.remember),
+      p_pattern: body.pattern || null,
+    };
+  } else if (u.pathname.endsWith("/api/report")) {
+    name = "survey_report";
+    args = { p_token: TOKEN };
   } else {
     return new Response(JSON.stringify({ ok: false, error: "non disponibile online" }), {
       status: 404, headers: { "Content-Type": "application/json" },
     });
   }
-  const res = await fetch(`${SB_URL}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: {
-      apikey: SB_KEY,
-      Authorization: "Bearer " + SB_KEY,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "Accept-Profile": "roi",
-      "Content-Profile": "roi",
-    },
-    body: JSON.stringify(args),
-  });
+  const res = await sbRpc(name, args);
   if (res.ok) return res;
   const err = await res.json().catch(() => ({}));
   const msg = err.message || err.error || ("errore " + res.status);
@@ -251,7 +358,11 @@ async function boot() {
   try {
     const res = await api("/api/bootstrap");
     if (res.status === 401) {
-      document.body.innerHTML = "<p style='max-width:36ch;margin:48px auto;padding:0 20px'>Ti serve il link del questionario.</p>";
+      if (TOKEN) {
+        document.body.innerHTML = "<p style='max-width:36ch;margin:48px auto;padding:0 20px'>Ti serve il link del questionario.</p>";
+        return;
+      }
+      location.href = "/login";
       return;
     }
     const data = await res.json();
@@ -265,9 +376,17 @@ async function boot() {
     if (state.mode === "tempo") {
       $("tabs").classList.add("hidden");
       $("tab-spese").classList.add("hidden");
+      if ($("tab-persone")) $("tab-persone").classList.add("hidden");
     } else {
+      if (state.team && $("logout") && !APP) $("logout").hidden = false;
       $("n-untagged").textContent = (state.untagged || []).length ? `(${state.untagged.length})` : "";
       renderTxs();
+      renderRoster();
+      if (APP && $("analisi-tab")) {
+        $("analisi-tab").classList.remove("hidden");
+        if ($("analisi-link")) $("analisi-link").hidden = true;
+        loadAnalisi();
+      }
     }
     fillPeople(keepPerson);
     mergeDrafts();
@@ -401,7 +520,7 @@ function onPerson() {
   const missing = state.costs_missing || [];
   const w = $("cost-warn");
   if (missing.includes(p)) {
-    w.textContent = p + " non ha un monthly_cost in people_costs.csv: il tempo si salva, ma il report non lo converte in euro finché non lo aggiungi.";
+    w.textContent = p + " è in elenco ma senza RAL: il tempo si salva, gli euro partono quando metti il pacchetto in Persone.";
     w.classList.remove("hidden");
   } else w.classList.add("hidden");
 }
@@ -487,7 +606,7 @@ function renderTxs() {
     : "Tutte le uscite importate hanno un’iniziativa.";
   const opts = `<option value="">— iniziativa —</option>` + state.initiatives.map(i => `<option value="${i.id}">${esc(i.name)}</option>`).join("");
   $("txs").innerHTML = list.map(t => `
-    <div class="tx" data-id="${t.id}">
+    <div class="tx" data-id="${t.id}" data-pattern="${esc((t.counterpart || t.description || "").slice(0,80))}">
       <div><span class="amt">${Number(t.amount).toLocaleString("it-IT")} €</span> · ${t.counterpart || t.description}</div>
       <div class="meta">${t.booked_on} · ${t.description || ""}</div>
       <div class="assign">
@@ -503,7 +622,12 @@ function renderTxs() {
       const remember = el.querySelector("input[type=checkbox]").checked;
       await api("/api/tag", {
         method:"POST",
-        body: JSON.stringify({id: el.dataset.id, initiative_id, remember})
+        body: JSON.stringify({
+          id: el.dataset.id,
+          initiative_id,
+          remember,
+          pattern: el.dataset.pattern || "",
+        })
       });
       el.remove();
       const n = $("txs").querySelectorAll(".tx").length;
@@ -512,16 +636,272 @@ function renderTxs() {
   });
 }
 
+function renderRoster() {
+  const box = $("roster");
+  if (!box) return;
+  const list = state.roster || [];
+  if (!list.length) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = list.map(r => {
+    const cost = r.hired
+      ? Number(r.monthly_cassa).toLocaleString("it-IT", {maximumFractionDigits: 0}) + " € / mese cassa"
+      : "non ancora assunto";
+    const from = r.from_month ? " · dal " + r.from_month : "";
+    return `<div class="tx" data-person="${esc(r.person)}">
+      <div><b>${esc(r.person)}</b> · ${cost}${from}</div>
+      <div class="meta">${r.hired ? ("RAL " + (r.ral || "—") + (r.credito_welfare ? " · welfare " + r.credito_welfare : "") + (r.fringe_benefit ? " · fringe " + r.fringe_benefit : "")) : "Compare in Chi sei. Il report lo ignora finché non c’è un RAL."}</div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".tx").forEach(el => {
+    el.style.cursor = "pointer";
+    el.addEventListener("click", () => fillPersonForm(el.dataset.person));
+  });
+}
+
+function fillPersonForm(name) {
+  const r = (state.roster || []).find(x => x.person === name) || {};
+  $("p-name").value = r.person || name || "";
+  $("p-ral").value = r.ral || "";
+  $("p-welfare").value = r.credito_welfare || "";
+  $("p-fringe").value = r.fringe_benefit || "";
+  $("p-buono").value = r.valore_facciale_buono || "";
+  $("p-giorni").value = r.giorni_buoni_pasto || "";
+  $("p-from").value = r.from_month || "";
+  $("p-contractor").checked = !!r.contractor;
+  $("p-figli").checked = !!r.figli_a_carico;
+  $("p-msg").textContent = "Modifica e salva. Lascia il RAL vuoto se non è ancora assunto.";
+}
+
+async function savePerson() {
+  const msg = $("p-msg");
+  const name = ($("p-name").value || "").trim();
+  if (!name) {
+    msg.textContent = "Serve il nome.";
+    return;
+  }
+  const body = {
+    person: name,
+    ral: ($("p-ral").value || "").trim(),
+    credito_welfare: ($("p-welfare").value || "").trim(),
+    fringe_benefit: ($("p-fringe").value || "").trim(),
+    valore_facciale_buono: ($("p-buono").value || "").trim(),
+    giorni_buoni_pasto: ($("p-giorni").value || "").trim(),
+    from_month: ($("p-from").value || "").trim(),
+    contractor: $("p-contractor").checked ? "true" : "false",
+    figli_a_carico: $("p-figli").checked ? "true" : "false",
+    formato_buono: "elettronico",
+  };
+  try {
+    const res = await api("/api/person", { method: "POST", body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!data.ok) {
+      msg.textContent = data.error || "Non salvato.";
+      return;
+    }
+    state.roster = data.roster || state.roster;
+    state.people = data.people || state.people;
+    state.costs_missing = data.costs_missing || [];
+    fillPeople(name);
+    renderRoster();
+    onPerson();
+    if (data.hired) {
+      msg.textContent = name + ": " + Number(data.monthly_cassa).toLocaleString("it-IT") + " € / mese di cassa. Compare in Chi sei.";
+    } else {
+      msg.textContent = name + " è in elenco, senza euro finché non metti il RAL.";
+    }
+  } catch (err) {
+    msg.textContent = "Non sono riuscito a salvare.";
+  }
+}
+
+function eur(n) {
+  return Number(n || 0).toLocaleString("it-IT", {maximumFractionDigits: 0}) + " €";
+}
+
+async function loadAnalisi() {
+  const box = $("analisi-body");
+  if (!box) return;
+  box.innerHTML = "<p class='lead'>Carico i numeri dai dati vivi…</p>";
+  try {
+    const res = await api("/api/report");
+    const d = await res.json();
+    if (!d.ok && !d.initiatives) {
+      box.innerHTML = "<p class='warn'>" + esc(d.error || "Non ho letto il report.") + "</p>";
+      return;
+    }
+    const rows = (d.initiatives || []).map(i =>
+      "<tr><td>" + esc(i.name) + " <span class='id'>" + esc(i.id) + "</span></td>"
+      + "<td>" + esc(CAT[i.category] || i.category || "") + "</td>"
+      + "<td>" + eur(i.vendor) + "</td>"
+      + "<td>" + eur(i.people) + "</td>"
+      + "<td><b>" + eur(i.total) + "</b></td>"
+      + "<td>" + eur(i.revenue) + "</td></tr>"
+    ).join("");
+    box.innerHTML =
+      "<p class='lead'>" + esc(d.period || "") + " · costo allocato " + eur(d.allocated)
+      + " · etichettata " + (d.pct_tagged || 0) + "% · senza etichetta " + eur(d.untagged)
+      + " · ricavi " + eur(d.revenue) + " su " + eur(d.revenue_total) + "</p>"
+      + (d.payroll_bank ? "<p class='warn'>PAYROLL in banca " + eur(d.payroll_bank)
+        + ", di cui il questionario ha spalmato " + eur(d.people) + ".</p>" : "")
+      + "<table style='width:100%;border-collapse:collapse'><thead><tr>"
+      + "<th align=left>Iniziativa</th><th align=left>Cat.</th><th align=left>Fornitori</th>"
+      + "<th align=left>Persone</th><th align=left>Costo</th><th align=left>Incassato</th>"
+      + "</tr></thead><tbody>" + (rows || "<tr><td colspan=6>niente di allocato</td></tr>")
+      + "</tbody></table>";
+  } catch (err) {
+    box.innerHTML = "<p class='warn'>Non ho letto il report.</p>";
+  }
+}
+
+function parseCsvText(text) {
+  const rows = [];
+  let row = [], cell = "", q = false;
+  const s = String(text || "").replace(/^\ufeff/, "");
+  const push = () => { if (row.some(x => String(x).trim())) rows.push(row); row = []; };
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) {
+      if (c === '"' && s[i + 1] === '"') { cell += '"'; i++; }
+      else if (c === '"') q = false;
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); cell = ""; push(); }
+    else if (c === "\r") continue;
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); push(); }
+  if (!rows.length) return [];
+  const keys = rows[0].map(k => String(k).trim());
+  return rows.slice(1).map(r => {
+    const o = {};
+    keys.forEach((k, i) => { o[k] = r[i] || ""; });
+    return o;
+  });
+}
+
+function pickField(row, keys) {
+  const idx = {};
+  Object.keys(row).forEach(k => { idx[String(k).trim().toLowerCase().replace(/\s+/g, " ")] = row[k]; });
+  for (const k of keys) if (idx[k]) return String(idx[k]);
+  return "";
+}
+
+function parseBankCsv(text) {
+  const SKIP = {topup:1, top_up:1, exchange:1, exchanging:1, vault:1};
+  const BAD = {pending:1, failed:1, declined:1, cancelled:1, canceled:1, reverted:1};
+  const OWN = {IT33I0200850240000107344921:1, IT47T0200850240NDG097481780:1};
+  const DATES = ["date completed (utc)","completed date","date completed","settlement date","transaction date","booking date","booked_on","data contabile","data operazione","date","data"];
+  const AMTS = ["total amount","amount (payment currency)","amount","importo"];
+  const DARE = ["dare","addebito","addebiti","uscite"];
+  const AVERE = ["avere","accredito","accrediti","entrate"];
+  const DESC = ["transaction description","description","descrizione","label","causale"];
+  const CTR = ["beneficiary name","merchant name","counterpart","controparte","payee"];
+  const IDS = ["transaction id","id","transaction_id"];
+  function num(raw) {
+    let s = String(raw || "").replace(/€/g, "").replace(/\s/g, "");
+    if (!s) return null;
+    if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+  function day(raw) {
+    const s = String(raw || "").replace(/T.*/, "").trim().slice(0, 10);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/) || s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return "";
+    return m[1].length === 4 ? m[0] : m[3] + "-" + m[2] + "-" + m[1];
+  }
+  const out = [];
+  parseCsvText(text).forEach(row => {
+    const st = pickField(row, ["state","status"]).toLowerCase();
+    const ty = pickField(row, ["type","transaction type"]).toLowerCase().replace(/[ -]/g, "_");
+    if (BAD[st] || SKIP[ty]) return;
+    const iban = pickField(row, ["beneficiary iban","iban beneficiario"]).replace(/\s/g, "").toUpperCase();
+    if (OWN[iban]) return;
+    const booked = day(pickField(row, DATES));
+    const dare = num(pickField(row, DARE));
+    const avere = num(pickField(row, AVERE));
+    let amount = null;
+    if (dare || avere) amount = -(Math.abs(dare || 0)) + Math.abs(avere || 0);
+    else amount = num(pickField(row, AMTS));
+    if (!booked || amount == null || amount === 0) return;
+    const refund = /refund|chargeback/.test(ty);
+    if (amount > 0 && !refund) return;
+    amount = Math.abs(amount);
+    if (refund) amount = -amount;
+    const desc = pickField(row, DESC);
+    const counterpart = pickField(row, CTR) || desc;
+    const rid = pickField(row, IDS) || ("tx-" + booked + "-" + amount + "-" + (desc || counterpart).slice(0, 20));
+    out.push({
+      id: String(rid).slice(0, 64),
+      booked_on: booked,
+      amount: amount.toFixed(2),
+      description: desc,
+      counterpart: counterpart,
+      mcc: pickField(row, ["mcc"]),
+    });
+  });
+  return out;
+}
+
+async function uploadBank() {
+  const input = $("bank-file");
+  const file = input && input.files && input.files[0];
+  const msg = $("bank-msg");
+  if (!file) {
+    msg.textContent = "Scegli un CSV prima.";
+    return;
+  }
+  msg.textContent = "Importo…";
+  try {
+    const csv = await file.text();
+    const payload = (SB_URL && SB_KEY && TOKEN)
+      ? { rows: parseBankCsv(csv) }
+      : { filename: file.name, csv };
+    if (payload.rows && !payload.rows.length) {
+      msg.textContent = "Nel file non ho trovato uscite (solo ricariche o movimenti pending?).";
+      return;
+    }
+    const res = await api("/api/bank", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      msg.textContent = data.error || "Import fallito.";
+      return;
+    }
+    const eur = Number(data.untagged_eur || 0).toLocaleString("it-IT");
+    const pay = Number(data.payroll_eur || 0).toLocaleString("it-IT");
+    msg.textContent =
+      `${data.added} movimenti nuovi. PAYROLL ${data.payroll_n || 0} (${pay} €). `
+      + `Senza etichetta: ${data.untagged_n} (${eur} €).`;
+    state.untagged = data.untagged || [];
+    $("n-untagged").textContent = state.untagged.length ? `(${state.untagged.length})` : "";
+    renderTxs();
+    input.value = "";
+  } catch (err) {
+    msg.textContent = "Non sono riuscito a leggere il file.";
+  }
+}
+
 document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on"));
   b.classList.add("on");
   $("tab-tempo").classList.toggle("hidden", b.dataset.tab !== "tempo");
   $("tab-spese").classList.toggle("hidden", b.dataset.tab !== "spese");
+  if ($("tab-persone")) $("tab-persone").classList.toggle("hidden", b.dataset.tab !== "persone");
+  if ($("tab-analisi")) $("tab-analisi").classList.toggle("hidden", b.dataset.tab !== "analisi");
+  if (b.dataset.tab === "analisi") loadAnalisi();
 }));
 $("person").addEventListener("change", () => { onPerson(); loadWeek(); });
 $("week").addEventListener("change", () => loadWeek());
 $("save").addEventListener("click", saveWeek);
 $("add-ini").addEventListener("click", addDraft);
+if ($("bank-upload")) $("bank-upload").addEventListener("click", uploadBank);
+if ($("p-save")) $("p-save").addEventListener("click", savePerson);
 $("copy-last").addEventListener("click", async () => {
   const q = new URLSearchParams({person:$("person").value, week_start:$("week").value, copy: "1"});
   const data = await (await api("/api/week?" + q)).json();
